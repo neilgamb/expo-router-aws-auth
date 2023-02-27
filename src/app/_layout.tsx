@@ -6,15 +6,10 @@ import { useEffect } from 'react';
 // to override it, follow https://expo.github.io/router/docs/features/errors/
 export { ErrorBoundary } from 'expo-router';
 
-export const unstable_settings = {
-  // Ensure that reloading on a route keeps back/forward navigation working.
-  initialRouteName: '(tabs)',
-};
-
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'), // todo: replace with font used in app
   });
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
