@@ -7,7 +7,11 @@ export default function ErrorScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Error Screen</Text>
-      <Text style={styles.errorMessage}>{params.error}</Text>
+      {params.error ? (
+        <Text style={styles.errorMessage}>{params.error}</Text>
+      ) : (
+        <Text style={styles.errorMessage}>Something went wrong</Text>
+      )}
     </View>
   );
 }

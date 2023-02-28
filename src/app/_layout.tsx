@@ -7,13 +7,9 @@ import { useAppConfig } from '../state/appConfig';
 export { ErrorBoundary } from 'expo-router';
 
 export default function RootLayout() {
+  const router = useRouter();
   const [isReady, setIsReady] = useState(false);
   const { loadConfig, config, configError } = useAppConfig();
-  const router = useRouter();
-
-  useEffect(() => {
-    loadConfig();
-  });
 
   useEffect(() => {
     if (config) {
@@ -23,9 +19,13 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (isReady && configError) {
-      router.push({ pathname: 'error', params: { error: 'Error loading app config' } });
+      router.push('error');
     }
   }, [isReady, configError, router]);
+
+  useEffect(() => {
+    loadConfig();
+  });
 
   return (
     <>
