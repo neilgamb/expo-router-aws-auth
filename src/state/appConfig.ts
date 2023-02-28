@@ -24,8 +24,6 @@ export const useAppConfig = create<Config>((set) => ({
   config: null,
   configError: false,
   loadConfig: () => {
-    setTimeout(() => {
-      set({ config: INIT_CONFIG, configError: false });
-    }, 500);
+    set({ config: INIT_CONFIG, configError: false });
   },
 }));
