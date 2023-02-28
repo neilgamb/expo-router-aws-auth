@@ -13,6 +13,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     // simulate loading fonts, etc
+    // show splash screen until ready
     setTimeout(() => {
       setIsReady(true);
     }, 500);
@@ -52,8 +53,13 @@ function RootLayoutNav() {
       authLoaded &&
       isAuthenticated
     ) {
+      let newPath = currentPath;
+      // this check is for dev mode, where the path is prefixed with /--/
+      if (currentPath.includes('/--/')) {
+        newPath = currentPath.replace('/--/', '/');
+      }
       // send to original route
-      router.replace(currentPath);
+      router.replace(newPath);
     }
   }, [authLoaded, isAuthenticated, segments, router, currentPath]);
 
