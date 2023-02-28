@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { SplashScreen, Stack, useSegments, useRouter } from 'expo-router';
+import { SplashScreen, Stack, useSegments, useRouter, usePathname } from 'expo-router';
 
 import { AuthProvider, useAuth } from '../providers/auth';
 
@@ -33,24 +33,36 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
+  const currentPath = usePathname();
   const { authLoaded, isAuthenticated } = useAuth();
 
   useEffect(() => {
     const isPrivate = segments[0] !== '(public)';
 
     if (
-      // If the user is not signed in and the initial segment is private
+      // If authentication is complete, the user is not signed in and the initial segment is private
+      authLoaded &&
       !isAuthenticated &&
       isPrivate
     ) {
-      router.replace({ pathname: '/error', params: { message: 'Authentication failed' } });
+      // send to generic error page with authentication failure message
+      router.replace({ pathname: '/error', params: { message: 'Authentication failure' } });
+    } else if (
+      // If authentication is complete, the user is signed in
+      authLoaded &&
+      isAuthenticated
+    ) {
+      // send to original route
+      router.replace(currentPath);
     }
-  }, [isAuthenticated, segments, router]);
+  }, [authLoaded, isAuthenticated, segments, router, currentPath]);
 
   if (!authLoaded) {
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator size="large" />
-    </View>;
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
   }
 
   return (

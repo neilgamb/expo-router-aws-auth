@@ -1,37 +1,29 @@
 import React, { ReactElement, ReactNode, useEffect, useState } from 'react';
 import { Amplify, Auth, Hub } from 'aws-amplify';
-import { CognitoIdToken, CognitoUser, CognitoUserSession } from 'amazon-cognito-identity-js';
+import { CognitoUser } from 'amazon-cognito-identity-js';
 import { useRouter, useSearchParams } from 'expo-router';
 
 const config = {
-  config: {
-    GATEWAY_API_ENDPOINT: 'https://t7n4nm7yp1.execute-api.us-east-1.amazonaws.com/qa',
-    COGNITO_REGION: 'us-east-1',
-    COGNITO_USER_POOL_ID: 'us-east-1_ZLOgvbDEE',
-    COGNITO_USER_POOL_WEB_CLIENT_ID: '44g1gnaev6suhscl9h1aur4pjf',
-  },
-  configLoaded: true,
-  configError: false,
+  GATEWAY_API_ENDPOINT: 'https://t7n4nm7yp1.execute-api.us-east-1.amazonaws.com/qa',
+  COGNITO_REGION: 'us-east-1',
+  COGNITO_USER_POOL_ID: 'us-east-1_ZLOgvbDEE',
+  COGNITO_USER_POOL_WEB_CLIENT_ID: '44g1gnaev6suhscl9h1aur4pjf',
 };
 
-export async function getCurrentSession(): Promise<CognitoUserSession> {
-  return await Auth.currentSession();
-}
+export const getCurrentSession = async () => {
+  try {
+    return await Auth.currentSession();
+  } catch (error) {
+    return null;
+  }
+};
 
 export async function signIn(username: string): Promise<CognitoUser> {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  return await Auth.signIn(username);
+  return (await Auth.signIn(username)) as CognitoUser;
 }
 
 export async function answerCustomChallenge(user: CognitoUser, code: string): Promise<CognitoUser> {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  return await Auth.sendCustomChallengeAnswer(user, code);
-}
-
-export async function authenticateUser(username: string, code: string): Promise<CognitoIdToken | undefined> {
-  const user = await signIn(username);
-  const authenticatedUser = await answerCustomChallenge(user, code);
-  return authenticatedUser.getSignInUserSession()?.getIdToken();
+  return (await Auth.sendCustomChallengeAnswer(user, code)) as CognitoUser;
 }
 
 export function getHeadersWithToken(token: string): { headers: { [key: string]: string } } {
@@ -43,12 +35,12 @@ export function getHeadersWithToken(token: string): { headers: { [key: string]: 
   };
 }
 
-export async function getResourceToken(username: string, code: string): Promise<void> {
+export async function getResourceToken(username: string, code: string) {
   const user = await signIn(username);
   await answerCustomChallenge(user, code);
   try {
-    const authenticatedUser = await Auth.currentAuthenticatedUser();
-    return authenticatedUser.getSignInUserSession().getIdToken().getJwtToken();
+    const authenticatedUser = (await Auth.currentAuthenticatedUser()) as CognitoUser;
+    return authenticatedUser?.getSignInUserSession()?.getIdToken().getJwtToken();
   } catch (error) {
     throw new Error(error);
   }
@@ -56,10 +48,8 @@ export async function getResourceToken(username: string, code: string): Promise<
 
 export interface IAuthContext {
   headers: { [key: string]: unknown };
-  idToken: CognitoIdToken | undefined;
   authLoaded: boolean;
   isAuthenticated: boolean;
-  authenticationError: boolean;
   sessionExpired: boolean;
 }
 
@@ -69,25 +59,19 @@ export function useAuth() {
 }
 
 export const AuthContext = React.createContext<IAuthContext>({
-  idToken: undefined,
   headers: {},
   authLoaded: false,
   isAuthenticated: false,
-  authenticationError: false,
   sessionExpired: false,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }): ReactElement {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authenticationError, setAuthenticationError] = useState(false);
   const [authLoaded, setAuthLoaded] = useState(false);
   const [headers, setHeaders] = useState<{ [key: string]: unknown }>({});
-  const [idToken, setIdToken] = useState<CognitoIdToken | undefined>(undefined);
   const [sessionExpired, setSessionExpired] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
-
-  // useProtectedRoute(isAuthenticated);
 
   useEffect(() => {
     const hubListenerCancelToken = Hub.listen('auth', (authMessage) => {
@@ -102,80 +86,74 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
   }, []);
 
   useEffect(() => {
-    if (!config.configError && config.configLoaded && config.config) {
-      try {
-        Amplify.configure({
-          Auth: {
-            region: config.config.COGNITO_REGION,
-            userPoolId: config.config.COGNITO_USER_POOL_ID,
-            userPoolWebClientId: config.config.COGNITO_USER_POOL_WEB_CLIENT_ID,
-            authenticationFlowType: 'CUSTOM_AUTH',
-          },
-        });
+    // If the user is authenticated, don't need to auth again
+    if (isAuthenticated) {
+      return;
+    }
 
-        if (!isAuthenticated) {
-          getCurrentSession()
-            .then((authSession) => {
-              console.log(authSession);
-              if (authSession) {
-                // Everything is fine
-                setHeaders(getHeadersWithToken(authSession.getIdToken().getJwtToken()));
-                setIdToken(authSession.getIdToken());
-                setIsAuthenticated(true);
-                setAuthLoaded(true);
-              }
-            })
-            .catch(async () => {
-              // Should throw when no session exists or is expired.
+    try {
+      Amplify.configure({
+        Auth: {
+          region: config.COGNITO_REGION,
+          userPoolId: config.COGNITO_USER_POOL_ID,
+          userPoolWebClientId: config.COGNITO_USER_POOL_WEB_CLIENT_ID,
+          authenticationFlowType: 'CUSTOM_AUTH',
+        },
+      });
+
+      if (!isAuthenticated) {
+        // Returns current sessions from Cognito if they exist, otherwise throws returns null
+        getCurrentSession()
+          // Using an async func in .then() ensures we can await inner promises and not let
+          // getCurrentSession() run past any required steps
+          .then(async (session) => {
+            // If we have a session, set the headers and set isAuthenticated to true
+            if (session) {
+              const headers = getHeadersWithToken(session.getIdToken().getJwtToken());
+              setHeaders(headers);
+              setIsAuthenticated(true);
+            } else {
               const { authCode, animalOwnerSmsNumber } = searchParams;
-
+              // If we have auth code and sms number query params
               if (authCode && animalOwnerSmsNumber) {
                 // Run custom auth flow
-                const value = await getResourceToken(animalOwnerSmsNumber, authCode);
-                console.log(value);
-                // Attempt auth
-                // const username = `${pimsType}#${orgId}#${subOrgId}#`;
-                // authenticateUser(username, authCode)
-                //   .then((idToken) => {
-                //     if (idToken) {
-                //       setIsAuthenticated(true);
-                //       setHeaders(getHeadersWithToken(idToken.getJwtToken()));
-                //       setIdToken(idToken);
-                //       setAuthLoaded(true);
-                //       router.setParams({});
-                //     } else {
-                //       console.error('Authentication failed.');
-                //       setAuthenticationError(true);
-                //       setAuthLoaded(true);
-                //     }
-                //   })
-                //   .catch((e) => {
-                //     // Cognito was configured, but authentication failed.
-                //     console.error('Something went wrong.', e);
-                //     setAuthenticationError(true);
-                //     setAuthLoaded(true);
-                //   });
-              } else {
-                // Don't have required parameters
-                console.error('Required parameters not provided.');
-                setAuthenticationError(true);
-                setAuthLoaded(true);
+                const value = (await getResourceToken(animalOwnerSmsNumber, authCode)) as string;
+                // Set bearer token for api requests
+                const headers = getHeadersWithToken(value);
+                setHeaders(headers);
+                setIsAuthenticated(true);
               }
-            });
-        }
-      } catch (e) {
-        // Configuration failed
-        setAuthenticationError(true);
-        setAuthLoaded(true);
-        console.error('Something went REALLY wrong.', e);
+            }
+          })
+          .catch((error) => {
+            setIsAuthenticated(false);
+            console.log(error);
+          })
+          .finally(() => {
+            // Auth being loaded is a true/false value independent of whether the user is authenticated
+            setTimeout(() => {
+              // todo: remove this timeout, warning, UI is jerky without it
+              setAuthLoaded(true);
+            }, 500);
+          });
       }
+    } catch (e) {
+      // AWS Amplify Configuration failed
+      setAuthLoaded(true);
+      console.error('Something went REALLY wrong.', e);
+      // setAuthenticationError(true);
     }
-  }, [searchParams, isAuthenticated, authenticationError, headers, idToken, router]);
+  }, [searchParams, isAuthenticated, headers, router]);
 
   // Render the children
   return (
     <AuthContext.Provider
-      value={{ idToken, headers, authLoaded, isAuthenticated, authenticationError, sessionExpired }}
+      value={{
+        headers,
+        authLoaded,
+        isAuthenticated,
+        sessionExpired,
+      }}
     >
       {children}
     </AuthContext.Provider>
