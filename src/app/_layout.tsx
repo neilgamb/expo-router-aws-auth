@@ -23,7 +23,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (isReady && configError) {
-      router.push('error');
+      router.push({ pathname: 'error', params: { error: 'Error loading app config' } });
     }
   }, [isReady, configError, router]);
 
