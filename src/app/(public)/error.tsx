@@ -1,14 +1,14 @@
-import { useSearchParams } from 'expo-router';
 import { Text, View, StyleSheet } from 'react-native';
+import { useSearchParams } from 'expo-router';
 
 export default function ErrorScreen() {
-  const params = useSearchParams();
+  const { message } = useSearchParams();
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Error Screen</Text>
-      {params.error ? (
-        <Text style={styles.errorMessage}>{params.error}</Text>
+      {message ? (
+        <Text style={styles.errorMessage}>{message}</Text>
       ) : (
         <Text style={styles.errorMessage}>Something went wrong</Text>
       )}
