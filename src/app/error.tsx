@@ -1,9 +1,9 @@
 import { Text, View, StyleSheet } from 'react-native';
 
-export default function AppointmentScreen() {
+export default function ErrorScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Appointment Screen</Text>
+      <Text style={styles.title}>Error Screen</Text>
     </View>
   );
 }

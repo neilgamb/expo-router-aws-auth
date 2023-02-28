@@ -1,27 +1,36 @@
-import { useFonts } from 'expo-font';
-import { SplashScreen, Stack } from 'expo-router';
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { SplashScreen, Stack, useRouter } from 'expo-router';
+import { useAppConfig } from '../state/appConfig';
 
 // default ErrorBoundary is exported from expo-router
 // to override it, follow https://expo.github.io/router/docs/features/errors/
 export { ErrorBoundary } from 'expo-router';
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'), // todo: replace with font used in app
+  const [isReady, setIsReady] = useState(false);
+  const { loadConfig, config, configError } = useAppConfig();
+  const router = useRouter();
+
+  useEffect(() => {
+    loadConfig();
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
-    if (error) throw error;
-  }, [error]);
+    if (config) {
+      setIsReady(true);
+    }
+  }, [config]);
+
+  useEffect(() => {
+    if (isReady && configError) {
+      router.push('error');
+    }
+  }, [isReady, configError, router]);
 
   return (
     <>
-      {/* Keep the splash screen open until the assets have loaded. In the future, we should just support async font loading with a native version of font-display. */}
-      {!loaded && <SplashScreen />}
-      {loaded && <RootLayoutNav />}
+      {!isReady && <SplashScreen />}
+      {isReady && <RootLayoutNav />}
     </>
   );
 }
@@ -30,8 +39,9 @@ function RootLayoutNav() {
   return (
     <>
       <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="appointment" options={{ headerShown: false }} />
+        <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
+        <Stack.Screen name="appointment" options={{ headerShown: false, title: 'Appointment' }} />
+        <Stack.Screen name="error" options={{ headerShown: false, title: 'Uh-oh' }} />
       </Stack>
     </>
   );

@@ -3,5 +3,5 @@
   "compilerOptions": {
     "strict": true
   },
-  "include": ["./.eslintrc.js", "./src/**/*"]
+  "include": ["./.eslintrc.js", "./src/**/*", "./index.ts"]
 }
